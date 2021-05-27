@@ -126,6 +126,8 @@ def update_filetype(extension: str, new_folder_path, move: bool):
         for file in files_to_move:
           shutil.move(path.join(filetype.folder, file), new_folder_path)
         success("Files moved")
+        shutil.rmtree(filetype.folder)
+        success("Deleted old folder")
       except:
         error("An error occurred while moving the files")
 
