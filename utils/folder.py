@@ -1,7 +1,8 @@
-from os import mkdir, path
+import os
 from utils.message import success, error
 
 
 def create_folder(path):
-  mkdir(path)
-  success("New folder created")
+  if not os.path.exists(path):
+    os.mkdir(path)
+    success("New folder created")

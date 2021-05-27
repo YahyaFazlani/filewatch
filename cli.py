@@ -1,8 +1,8 @@
-import sys
+import shutil
 import time
-from os import path
+from os import path, listdir, environ
 from shutil import rmtree
-
+from dotenv import load_dotenv
 import click
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -13,16 +13,23 @@ from utils.folder import create_folder
 from utils.handler import Handler
 from utils.message import error, success
 
-engine = create_engine(
-    "sqlite:////home/yahyafazlani/code/projects/file-organizer/database.db")
+load_dotenv()
+
+DB_URI = environ.get("DB_URI", "sqlite:///database.db")
+engine = create_engine(DB_URI)
 
 session = Session(bind=engine)
 
 
-@click.command(name="watch")
-def start_watching():
-  path = sys.argv[1] if len(sys.argv) > 1 else '.'
-  event_handler = Handler(session)
+@click.group()
+def cli():
+  pass
+
+
+@cli.command(name="start")
+@click.option("-p", "--path", required=False, default=".", type=click.Path(exists=True, file_okay=False, resolve_path=True), help="path to watch from")
+def start_watching(path):
+  event_handler = Handler()
   observer = Observer()
   observer.schedule(event_handler, path, recursive=True)
   observer.start()
@@ -38,9 +45,9 @@ def start_watching():
     observer.join()
 
 
-@click.command(name="create")
+@cli.command(name="create")
 @click.argument("extension", type=click.STRING)
-@click.argument("folder_path", type=click.Path(exists=True, file_okay=False, resolve_path=True))
+@click.argument("folder_path", type=click.Path(file_okay=False, resolve_path=True))
 def create_filetype(extension, folder_path):
   extension = extension.strip(".")
   filetype = session.query(FileTypeModel).filter(
@@ -67,14 +74,19 @@ def create_filetype(extension, folder_path):
     error("Filetype already exists")
 
 
-@click.command(name="delete")
+@cli.command(name="delete")
 @click.option("-df", "--delete-folder", type=bool, default=False)
 @click.argument("extension")
-@click.argument("folder_path", type=click.Path(exists=True, file_okay=False, resolve_path=True))
-def delete_filetype(delete_folder, extension: str, folder_path):
+def delete_filetype(delete_folder, extension: str):
   extension = extension.strip(".")
   filetype = session.query(FileTypeModel).filter(
       FileTypeModel.file_extension == extension).first()
+
+  if filetype is None:
+    error(f"No filetype named '{extension}'")
+    return
+
+  folder_path = filetype.folder
 
   if filetype is not None:
     session.delete(filetype)
@@ -90,19 +102,35 @@ def delete_filetype(delete_folder, extension: str, folder_path):
         error("An error occurred while deleting the folder")
 
 
-@click.command(name="update")
+@cli.command(name="update")
 @click.option("-m", "--move", type=bool, default=False)
 @click.argument("extension")
-@click.argument("new_folder_path", type=click.Path(exists=True, file_okay=False, resolve_path=True))
-def update_filetype(extension: str, new_folder_path):
+@click.argument("new_folder_path", type=click.Path(file_okay=False, resolve_path=True))
+def update_filetype(extension: str, new_folder_path, move: bool):
   extension = extension.strip(".")
   filetype = session.query(FileTypeModel).filter(
       FileTypeModel.file_extension == extension).first()
 
   if filetype is not None:
+    if filetype.folder == new_folder_path:
+      error("New folder same as old folder")
+      return
+
     create_folder(new_folder_path)
 
+    if move:
+      click.echo("Moving files...")
+      files_to_move = listdir(filetype.folder)
+
+      try:
+        for file in files_to_move:
+          shutil.move(path.join(filetype.folder, file), new_folder_path)
+        success("Files moved")
+      except:
+        error("An error occurred while moving the files")
+
     filetype.folder = new_folder_path
+    session.commit()
 
     success("Filetype updated successfully")
 
@@ -111,7 +139,4 @@ def update_filetype(extension: str, new_folder_path):
 
 
 if __name__ == "__main__":
-  start_watching()
-  create_filetype()
-  delete_filetype()
-  update_filetype()
+  cli()

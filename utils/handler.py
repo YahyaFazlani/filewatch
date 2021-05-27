@@ -10,11 +10,13 @@ from watchdog.events import (DirCreatedEvent, FileCreatedEvent,
 
 
 class Handler(FileSystemEventHandler):
-
-  def __init__(self, session: Session) -> None:
-    self.session = session
-
   def on_created(self, event: Union[FileCreatedEvent, DirCreatedEvent]):
+    DB_URI = os.environ.get("DB_URI", "sqlite:///database.db")
+
+    engine = create_engine(
+        DB_URI)
+    session = Session(bind=engine)
+
     if event.is_directory:
       print(f"Directory created - {event.src_path}")
 
@@ -25,7 +27,7 @@ class Handler(FileSystemEventHandler):
       extension: str = os.path.splitext(file_path)[1]
       extension = extension.strip(".")
 
-      file_type = self.session.query(FileTypeModel).filter(
+      file_type = session.query(FileTypeModel).filter(
           FileTypeModel.file_extension.is_(extension)).first()
 
       try:
@@ -33,6 +35,8 @@ class Handler(FileSystemEventHandler):
           new_file_path = os.path.join(file_type.folder, file_path)
 
           shutil.move(file_path, file_type.folder)
-          print(f"File moved - {os.path.relpath(file_path)}")
+          print(f"File moved - {os.path.relpath(new_file_path)}")
       except shutil.Error as e:
         print("An error occurred while moving the file. Please check if a file with the same name exists in the folder")
+      finally:
+        session.close()
