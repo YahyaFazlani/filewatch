@@ -1,0 +1,7 @@
+autopep8==1.5.7
+click==8.0.1
+greenlet==1.1.0
+pycodestyle==2.7.0
+SQLAlchemy==1.4.15
+toml==0.10.2
+watchdog==2.1.2
