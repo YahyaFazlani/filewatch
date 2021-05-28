@@ -129,7 +129,7 @@ def update_filetype(extension: str, new_folder_path, move: bool):
         shutil.rmtree(filetype.folder)
         success("Deleted old folder")
       except:
-        error("An error occurred while moving the files")
+        error("An error occurred while moving the files. Check if the old folder exists")
 
     filetype.folder = new_folder_path
     session.commit()
