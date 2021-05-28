@@ -1,6 +1,6 @@
 # Filewatch
 
-A file organizer with cli to add filetypes and choose a folder to put files of that type/extension into.
+A file organizer with a cli to add filetypes and choose a folder to put files of that type/extension into.
 
 ## Set up
 1. Create a .env in the project directory
@@ -46,4 +46,3 @@ Delete the filetype from the database. Option to delete the folder.
 filewatch start [--path="."]
 ```
 Start watching and move files accordingly. Option to change path to watch from, defaults to the current directory if not provided.
- 
